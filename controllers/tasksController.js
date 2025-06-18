@@ -1,6 +1,6 @@
 const Task = require('../models/tasks');
 
-// Get all tasks
+
 exports.getAllTasks = async (req, res) => {
   try {
     const tasks = await Task.find().sort({ dateCreated: -1 });
@@ -10,7 +10,7 @@ exports.getAllTasks = async (req, res) => {
   }
 };
 
-// Create a new task
+
 exports.createTask = async (req, res) => {
   const { taskName, description, priority, dateScheduled } = req.body;
 
@@ -32,20 +32,27 @@ exports.createTask = async (req, res) => {
   }
 };
 
-// Update task status (and set dateCompleted if completed)
 exports.updateTaskStatus = async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { taskName, description, priority, dateScheduled, status } = req.body;
 
   try {
-    console.log("got update request for task:", id, "with status:", status);
-    const updatedTask = await Task.findByIdAndUpdate(
-      id,
-      {
-        status,
-        dateCompleted: status === 'completed' ? new Date() : null
-      }
-    );
+    const updateData = {
+      ...(taskName !== undefined && { taskName }),
+      ...(description !== undefined && { description }),
+      ...(priority !== undefined && { priority }),
+      ...(dateScheduled !== undefined && { dateScheduled }),
+      ...(status !== undefined && { status }),
+    };
+
+    // Set dateCompleted if status is updated to completed
+    if (status === 'completed') {
+      updateData.dateCompleted = new Date();
+    } else if (status) {
+      updateData.dateCompleted = null;
+    }
+
+    const updatedTask = await Task.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!updatedTask) {
       return res.status(404).json({ error: 'Task not found' });
@@ -53,15 +60,18 @@ exports.updateTaskStatus = async (req, res) => {
 
     res.json(updatedTask);
   } catch (err) {
-    res.status(400).json({ error: 'Failed to update task status' });
+    console.error(err);
+    res.status(400).json({ error: 'Failed to update task' });
   }
 };
 
-// Delete a task
+
+
 exports.deleteTask = async (req, res) => {
   const { id } = req.params;
 
   try {
+    //console.log("got delete request for task:", id);
     const deletedTask = await Task.findByIdAndDelete(id);
     if (!deletedTask) {
       return res.status(404).json({ error: 'Task not found' });
@@ -73,7 +83,7 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
-// Get tasks by status
+
 exports.getTasksByStatus = async (req, res) => {
   const { status } = req.params;
 

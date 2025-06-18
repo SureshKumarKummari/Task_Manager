@@ -13,6 +13,7 @@
       Task Manager Dashboard
     </h1>
 
+    <!-- Filter + Add Task Button -->
     <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
       <div>
         <label class="block text-sm font-medium mb-1">Filter</label>
@@ -22,6 +23,50 @@
           <option>Completed</option>
         </select>
       </div>
+      <button
+        onclick="toggleForm('createForm')"
+        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+      >
+        ➕ Add New Task
+      </button>
+    </div>
+
+    <!-- Hidden Create Task Form -->
+    <div id="createForm" class="hidden mb-6 bg-gray-100 p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-2">Create a New Task</h2>
+      <form onsubmit="createTask(event)" class="space-y-4">
+        <input type="text" id="newTaskName" required placeholder="Task Name" class="w-full p-2 border rounded" />
+        <textarea id="newDescription" placeholder="Description" class="w-full p-2 border rounded"></textarea>
+        <select id="newPriority" class="w-full p-2 border rounded">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <input type="datetime-local" id="newScheduledDate" required class="w-full p-2 border rounded" />
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          Create Task
+        </button>
+      </form>
+    </div>
+
+    <!-- Hidden Edit Task Form -->
+    <div id="editForm" class="hidden mb-6 bg-yellow-100 p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-2">Edit Task</h2>
+      <form onsubmit="submitEdit(event)" class="space-y-4">
+        <input type="hidden" id="editTaskId" />
+        <input type="text" id="editTaskName" required class="w-full p-2 border rounded" />
+        <textarea id="editDescription" class="w-full p-2 border rounded"></textarea>
+        <select id="editPriority" class="w-full p-2 border rounded">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <input type="datetime-local" id="editScheduledDate" required class="w-full p-2 border rounded" />
+        <div class="flex justify-between">
+          <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Update Task</button>
+          <button type="button" onclick="toggleForm('editForm')" class="text-red-500 hover:underline">Cancel</button>
+        </div>
+      </form>
     </div>
 
     <div id="taskContainer" class="flex flex-wrap gap-4"></div>
@@ -33,7 +78,15 @@
     const filterSelect = document.getElementById("filterSelect");
     const loadingText = document.getElementById("loadingText");
 
+    const createForm = document.getElementById("createForm");
+    const editForm = document.getElementById("editForm");
+
     let tasks = [];
+
+    function toggleForm(formId) {
+      const form = document.getElementById(formId);
+      form.classList.toggle("hidden");
+    }
 
     function formatDate(dateStr) {
       if (!dateStr) return "-";
@@ -47,6 +100,11 @@
         minute: "2-digit",
         hour12: true,
       });
+    }
+
+    function toInputDatetime(dateStr) {
+      const date = new Date(dateStr);
+      return date.toISOString().slice(0, 16);
     }
 
     function renderTasks() {
@@ -66,4 +124,134 @@
         const card = document.createElement("div");
         card.className = `w-80 p-4 rounded shadow border-l-4 flex-shrink-0 ${
           task.status === "completed"
-            ? "borde
+            ? "border-green-500 bg-green-50"
+            : "border-yellow-500 bg-yellow-50"
+        }`;
+
+        card.innerHTML = `
+          <div class="flex flex-col h-full justify-between">
+            <div>
+              <h3 class="text-xl font-semibold text-gray-800 mb-1">${task.taskName}</h3>
+              <p class="text-gray-600 mb-1"><strong>Description:</strong> ${task.description || "—"}</p>
+              <p class="text-gray-600 mb-1"><strong>Status:</strong> ${task.status}</p>
+              <p class="text-gray-600 mb-1"><strong>Priority:</strong> <span class="capitalize">${task.priority}</span></p>
+              <p class="text-gray-600 mb-1"><strong>Created:</strong> ${formatDate(task.dateCreated)}</p>
+              <p class="text-blue-600 mb-1"><strong>Scheduled:</strong> ${formatDate(task.dateScheduled)}</p>
+              <p class="text-blue-600 mb-2"><strong>Completed:</strong> ${formatDate(task.dateCompleted)}</p>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-2">
+              ${
+                task.status !== "completed"
+                  ? `
+                    <button class="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700" onclick="markAsCompleted('${task._id}')">Complete</button>
+                    <button class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600" onclick="editTask('${task._id}')">Edit</button>
+                  `
+                  : ""
+              }
+              <button class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" onclick="deleteTask('${task._id}')">Delete</button>
+            </div>
+          </div>
+        `;
+        taskContainer.appendChild(card);
+      });
+    }
+
+    async function fetchTasks() {
+      try {
+        const res = await axios.get("http://localhost:3000/tasks");
+        tasks = res.data;
+        loadingText.style.display = "none";
+        renderTasks();
+      } catch (err) {
+        loadingText.textContent = "Error loading tasks.";
+        console.error(err);
+      }
+    }
+
+    async function markAsCompleted(taskId) {
+      try {
+        const now = new Date().toISOString();
+        await axios.patch(`http://localhost:3000/tasks/${taskId}`, {
+          status: "completed",
+          dateCompleted: now,
+        });
+        fetchTasks();
+      } catch (err) {
+        alert("Failed to mark task as completed.");
+        console.error(err);
+      }
+    }
+
+    async function deleteTask(taskId) {
+      if (!confirm("Are you sure you want to delete this task?")) return;
+      try {
+        await axios.delete(`http://localhost:3000/tasks/${taskId}`);
+        fetchTasks();
+      } catch (err) {
+        alert("Failed to delete task.");
+        console.error(err);
+      }
+    }
+
+    function editTask(taskId) {
+      const task = tasks.find(t => t._id === taskId);
+      if (!task) return;
+
+      document.getElementById("editTaskId").value = task._id;
+      document.getElementById("editTaskName").value = task.taskName;
+      document.getElementById("editDescription").value = task.description;
+      document.getElementById("editPriority").value = task.priority;
+      document.getElementById("editScheduledDate").value = toInputDatetime(task.dateScheduled);
+
+      if (createForm && !createForm.classList.contains("hidden")) {
+        createForm.classList.add("hidden");
+      }
+      editForm.classList.remove("hidden");
+    }
+
+    async function submitEdit(event) {
+      event.preventDefault();
+      const taskId = document.getElementById("editTaskId").value;
+      const updatedData = {
+        taskName: document.getElementById("editTaskName").value,
+        description: document.getElementById("editDescription").value,
+        priority: document.getElementById("editPriority").value,
+        dateScheduled: new Date(document.getElementById("editScheduledDate").value).toISOString(),
+      };
+
+      try {
+        await axios.patch(`http://localhost:3000/tasks/${taskId}`, updatedData);
+        toggleForm("editForm");
+        fetchTasks();
+      } catch (err) {
+        alert("Failed to update task.");
+        console.error(err);
+      }
+    }
+
+    async function createTask(event) {
+      event.preventDefault();
+      const newTask = {
+        taskName: document.getElementById("newTaskName").value,
+        description: document.getElementById("newDescription").value,
+        priority: document.getElementById("newPriority").value,
+        dateScheduled: new Date(document.getElementById("newScheduledDate").value).toISOString(),
+        dateCreated: new Date().toISOString(),
+        status: "pending"
+      };
+
+      try {
+        await axios.post("http://localhost:3000/tasks", newTask);
+        toggleForm("createForm");
+        fetchTasks();
+      } catch (err) {
+        alert("Failed to create task.");
+        console.error(err);
+      }
+    }
+
+    filterSelect.addEventListener("change", renderTasks);
+    fetchTasks();
+  </script>
+</body>
+</html>
