@@ -45,7 +45,6 @@ exports.updateTaskStatus = async (req, res) => {
       ...(status !== undefined && { status }),
     };
 
-    // Set dateCompleted if status is updated to completed
     if (status === 'completed') {
       updateData.dateCompleted = new Date();
     } else if (status) {
