@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Task Manager Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6 font-sans">
+  <div class="max-w-7xl mx-auto bg-white shadow-md rounded p-6">
+    <h1 class="text-3xl font-bold mb-4 text-center text-indigo-600">
+      Task Manager Dashboard
+    </h1>
+
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+      <div>
+        <label class="block text-sm font-medium mb-1">Filter</label>
+        <select id="filterSelect" class="border border-gray-300 p-2 rounded">
+          <option>All</option>
+          <option>Pending</option>
+          <option>Completed</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="taskContainer" class="flex flex-wrap gap-4"></div>
+    <p id="loadingText" class="text-center text-gray-600">Loading tasks...</p>
+  </div>
+
+  <script>
+    const taskContainer = document.getElementById("taskContainer");
+    const filterSelect = document.getElementById("filterSelect");
+    const loadingText = document.getElementById("loadingText");
+
+    let tasks = [];
+
+    function formatDate(dateStr) {
+      if (!dateStr) return "-";
+      const date = new Date(dateStr);
+      return date.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+
+    function renderTasks() {
+      const filter = filterSelect.value;
+      const filteredTasks = tasks.filter(task =>
+        filter === "All" ? true : task.status === filter.toLowerCase()
+      );
+
+      taskContainer.innerHTML = "";
+
+      if (filteredTasks.length === 0) {
+        taskContainer.innerHTML = `<p class="text-center text-gray-600">No tasks to show.</p>`;
+        return;
+      }
+
+      filteredTasks.forEach(task => {
+        const card = document.createElement("div");
+        card.className = `w-80 p-4 rounded shadow border-l-4 flex-shrink-0 ${
+          task.status === "completed"
+            ? "borde
